@@ -22,9 +22,45 @@ APPLICATION_NAME = 'line2gcal'
 TZ = 'Asia/Taipei'
 
 
+class DynamodbStorage(oauth2client.client.Storage):
+    def locked_delete(self):
+        self.table.delete_item(
+            self.table.deleteItem(
+                Key={
+                    'id': self.id
+                }
+            )
+        )
+
+    def locked_get(self):
+        credentials = None
+        val = self.table.get_item(
+            Key={
+                'id': self.id
+            }
+        )
+        print(val)
+        if 'Item' in val:
+            credentials = client.Credentials.new_from_json(val['Item']['credential'])
+        return credentials
+
+    def locked_put(self, credentials):
+        self.table.put_item(
+            Item={
+                'id': self.id,
+                'credential': credentials.to_json()
+            }
+        )
+
+    def __init__(self, id):
+        super(DynamodbStorage, self).__init__()
+        dynamodb = boto3.resource('dynamodb', region_name="ap-northeast-1")
+        self.table = dynamodb.Table('line2gcal')
+        self.id = id
+
+
 def get_credentials():
-    credential_path = 'credentials/line2gcal.json'
-    store = oauth2client.file.Storage(credential_path)
+    store = DynamodbStorage("sigmapan")
     credentials = store.get()
     if not credentials or credentials.invalid:
         flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
@@ -34,7 +70,6 @@ def get_credentials():
             credentials = tools.run_flow(flow, store, flags)
         else:  # Needed only for compatibility with Python 2.6
             credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
     return credentials
 
 
@@ -119,23 +154,11 @@ def parse_datetime(str):
 
 def send_msg(mid, msg):
     credentials = json.load(open("credentials/line_bot_credential.json"))
-    client = LineBotClient(**credentials)
-    client.send_text(
+    line_bot_client = LineBotClient(**credentials)
+    line_bot_client.send_text(
         to_mid=mid,
         text=msg
     )
-
-
-class CredentialManager:
-    def __init__(self):
-        dynamodb = boto3.resource('dynamodb', region_name="ap-northeast-1")
-        self.table = dynamodb.Table("line2gcal")
-
-    def read_preference(self, uid):
-        pass
-
-    def write_preference(self, uid, credential, calendar_id):
-        pass
 
 
 if __name__ == '__main__':
