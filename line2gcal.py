@@ -39,7 +39,6 @@ class DynamodbStorage(oauth2client.client.Storage):
                 'id': self.id
             }
         )
-        print(val)
         if 'Item' in val:
             credentials = client.Credentials.new_from_json(val['Item']['credential'])
         return credentials
