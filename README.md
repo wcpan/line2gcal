@@ -5,6 +5,8 @@
 - run the init command to approve api in the code
 - pack, change mode for credentials
 
+## deploy on AWS use Lambda + API Gateway
+- pack the code
 
 ## commands
 /gcal 'Analysis of Algorithms Final' 12/24

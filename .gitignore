@@ -15,4 +15,15 @@ simplejson/
 six.py
 six.pyc
 uritemplate/
+linebot/
+requests/
+enum/
+credentials/
+boto3/
+botocore/
+concurrent/
+dateutil/
+docutils/
+jmespath/
+s3transfer/
 *.iml

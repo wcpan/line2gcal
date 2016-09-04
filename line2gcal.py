@@ -1,45 +1,27 @@
 from __future__ import print_function
-
 from collections import namedtuple
-
 import httplib2
 import os
-
 from apiclient import discovery
 import oauth2client
 from oauth2client import client
 from oauth2client import tools
 import parsedatetime as pdt
 import shlex
+import boto3
 from datetime import datetime as dt
 from time import mktime
-
 import datetime
+from linebot.client import LineBotClient
+import json
 
-try:
-    import argparse
-
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
-
-# If modifying these scopes, delete your previously saved credentials
-# at ~/.credentials/calendar-python-quickstart.json
 SCOPES = 'https://www.googleapis.com/auth/calendar'
-CLIENT_SECRET_FILE = 'client_secret.json'
+CLIENT_SECRET_FILE = 'credentials/client_secret.json'
 APPLICATION_NAME = 'line2gcal'
 TZ = 'Asia/Taipei'
 
 
 def get_credentials():
-    """Gets valid user credentials from storage.
-
-    If nothing has been stored, or if the stored credentials are invalid,
-    the OAuth2 flow is completed to obtain the new credentials.
-
-    Returns:
-        Credentials, the obtained credential.
-    """
     credential_dir = os.path.join(os.curdir, '.credentials')
     if not os.path.exists(credential_dir):
         os.makedirs(credential_dir)
@@ -73,18 +55,19 @@ def parseArgs(inputString):
 
 def lambda_handler(event, context):
     processCommand(event['result'][0]['content']['text'])
-    return 'Hello from Lambda'
+    send_msg(event['result'][0]['content']['from'], "Done!!")
+    return "ok"
 
 
 def processCommand(command):
     args = parseArgs(command)
 
-    setTimezone()
+    set_timezone()
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
 
-    calendarId = getCalendarIdByName(service, "family")
+    calendarId = get_calendar_by_name(service, "family")
     createEvent(service, calendarId, args)
 
 
@@ -93,7 +76,7 @@ def main():
 
 
 def createEvent(service, calendarId, args):
-    start = parseDatetime(args.when)
+    start = parse_datetime(args.when)
     end = start + datetime.timedelta(minutes=args.duration)
     event = {
         'summary': args.title,
@@ -114,7 +97,7 @@ def createEvent(service, calendarId, args):
     ).execute()
 
 
-def getCalendarIdByName(service, name):
+def get_calendar_by_name(service, name):
     calendarList = service.calendarList().list().execute().get('items', [])
     calendarId = ""
     for calendar in calendarList:
@@ -124,15 +107,36 @@ def getCalendarIdByName(service, name):
     return calendarId
 
 
-def setTimezone():
+def set_timezone():
     os.environ['TZ'] = TZ
 
 
-def parseDatetime(str):
+def parse_datetime(str):
     c = pdt.Constants()
     p = pdt.Calendar(c)
     result, r = p.parse(str)
     return dt.fromtimestamp(mktime(result))
+
+
+def send_msg(mid, msg):
+    credentials = json.load(open("credentials/line_bot_credential.json"))
+    client = LineBotClient(**credentials)
+    client.send_text(
+        to_mid=mid,
+        text=msg
+    )
+
+
+class CredentialManager:
+    def __init__(self):
+        dynamodb = boto3.resource('dynamodb', region_name="ap-northeast-1")
+        self.table = dynamodb.Table("line2gcal")
+
+    def read_preference(self, uid):
+        pass
+
+    def write_preference(self, uid, credential, calendar_id):
+        pass
 
 
 if __name__ == '__main__':
