@@ -13,6 +13,7 @@ from datetime import datetime as dt
 from time import mktime
 import datetime
 from linebot.client import LineBotClient
+import argparse
 import json
 
 SCOPES = 'https://www.googleapis.com/auth/calendar'
@@ -22,16 +23,13 @@ TZ = 'Asia/Taipei'
 
 
 def get_credentials():
-    credential_dir = os.path.join(os.curdir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,
-                                   'line2gcal.json')
+    credential_path = 'credentials/line2gcal.json'
     store = oauth2client.file.Storage(credential_path)
     credentials = store.get()
     if not credentials or credentials.invalid:
         flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
         flow.user_agent = APPLICATION_NAME
+        flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
         if flags:
             credentials = tools.run_flow(flow, store, flags)
         else:  # Needed only for compatibility with Python 2.6
@@ -40,11 +38,11 @@ def get_credentials():
     return credentials
 
 
-def parseArgs(inputString):
+def parse_args(inputString):
     argv = shlex.split(inputString)
     # parser = argparse.ArgumentParser()
     # argv = parser.parse_args(args=arr)
-    if (argv[0] != "/gcal"):
+    if argv[0] != "/gcal":
         exit(0)
     Args = namedtuple("Args", "title when duration who location description")
     args = Args(duration=60, title=argv[1], when=argv[2], description="", location="", who="")
@@ -54,28 +52,28 @@ def parseArgs(inputString):
 
 
 def lambda_handler(event, context):
-    processCommand(event['result'][0]['content']['text'])
+    process_command(event['result'][0]['content']['text'])
     send_msg(event['result'][0]['content']['from'], "Done!!")
     return "ok"
 
 
-def processCommand(command):
-    args = parseArgs(command)
+def process_command(command):
+    args = parse_args(command)
 
     set_timezone()
     credentials = get_credentials()
     http = credentials.authorize(httplib2.Http())
     service = discovery.build('calendar', 'v3', http=http)
 
-    calendarId = get_calendar_by_name(service, "family")
-    createEvent(service, calendarId, args)
+    calendar_id = get_calendar_by_name(service, "family")
+    return create_event(service, calendar_id, args)
 
 
 def main():
-    processCommand("/gcal 'Hello World' +1d")
+    print(process_command("/gcal 'Hello World' +1d"))
 
 
-def createEvent(service, calendarId, args):
+def create_event(service, calendarId, args):
     start = parse_datetime(args.when)
     end = start + datetime.timedelta(minutes=args.duration)
     event = {
@@ -91,20 +89,21 @@ def createEvent(service, calendarId, args):
             'timeZone': TZ,
         },
     }
-    service.events().insert(
+    event = service.events().insert(
         calendarId=calendarId,
         body=event
     ).execute()
+    return "event created: " + event.get('htmlLink')
 
 
 def get_calendar_by_name(service, name):
-    calendarList = service.calendarList().list().execute().get('items', [])
-    calendarId = ""
-    for calendar in calendarList:
-        if (calendar['summary'] == name):
-            calendarId = calendar['id']
+    calendar_list = service.calendarList().list().execute().get('items', [])
+    calendar_id = ""
+    for calendar in calendar_list:
+        if calendar['summary'] == name:
+            calendar_id = calendar['id']
             break
-    return calendarId
+    return calendar_id
 
 
 def set_timezone():
