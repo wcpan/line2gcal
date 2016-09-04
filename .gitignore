@@ -1,0 +1,18 @@
+# Created by .ignore support plugin (hsz.mobi)
+.idea
+.credentials
+client_secret.json
+*.dist-info
+apiclient/
+googleapiclient/
+httplib2/
+oauth2client/
+parsedatetime/
+pyasn1/
+pyasn1_modules/
+rsa/
+simplejson/
+six.py
+six.pyc
+uritemplate/
+*.iml
