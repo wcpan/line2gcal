@@ -1,5 +1,8 @@
 # line2gcal
 
+
+## Deployment
+<img src="img/line2gcal.png">
 ## setup
 - setup google api account, download client_secret.json
 - run the init command to approve api in the code
